@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "main" ] # Agar aapki branch ka naam master hai, toh yahan master likhein
+    branches: [ "main" ]
 
 jobs:
   build-and-push:
@@ -15,7 +15,8 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
+        # Yahan apna exact Docker Hub username bina kisi mistake ke likhein
+        username: "AAHESAN41" 
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Set up Docker Buildx
@@ -26,5 +27,5 @@ jobs:
       with:
         context: .
         push: true
-        # 'my-app' ko badal kar jo aapki image ka naam rakhna hai wo likh dein
-        tags: ${{ secrets.DOCKER_USERNAME }}/nyc-house-prediction:latest
+        # Yahan bhi humne username direct likh diya hai
+        tags: aahesan41/nyc-house-prediction:latest
