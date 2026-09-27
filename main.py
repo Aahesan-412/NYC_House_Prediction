@@ -4,7 +4,10 @@ from pydantic import BaseModel, Field
 import joblib
 import numpy as np
 from fastapi.middleware.cors import CORSMiddleware
-
+# --- YE DO LINE NAYI IMPORT KI HAIN ---
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 app = FastAPI()
 
@@ -15,6 +18,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- 1. STATIC FOLDER MOUNT KARNE KA CODE ---
+# Isse aapki saari CSS aur JS publically browser ko mil payengi
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 COLUMNS = ["latitude", "longitude", "price", "minimum_nights",
     "number_of_reviews", "reviews_per_month",
@@ -23,7 +30,7 @@ COLUMNS = ["latitude", "longitude", "price", "minimum_nights",
 
 model = joblib.load("Model_PipeLine.pkl")  # Load the pre-trained model pipeline
 
-#Pydantic Model = the input validation
+# Pydantic Model = the input validation
 class Features(BaseModel):
     latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
@@ -37,10 +44,12 @@ class Features(BaseModel):
     neighbourhood: str = Field(..., min_length=1, description="Specific neighbourhood name")
 
 
-
+# --- 2. HOME ROUTE KO UPDATE KAR DIYA HAI ---
+# Ab ye text ki jagah aapke static folder se index.html return karega
 @app.get('/')
 def greet():
-    return "Hello Guyss"
+    # Note: Agar aapki main HTML file ka naam index.html nahi hai, toh use badal dena
+    return FileResponse(os.path.join("static", "index.html"))
 
 
 @app.post('/predict')
