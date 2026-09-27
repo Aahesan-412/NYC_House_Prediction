@@ -1,22 +1,21 @@
 // ============================================================
 // CONFIG
 // ============================================================
-// Point this at wherever your FastAPI app is running.
-const API_BASE_URL = "https://nyc-house-prediction-whyx.onrender.com";
+// Automatic pata laga lega ki local chal raha hai ya Render par
+const API_BASE_URL = window.location.origin; 
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 const HEALTH_ENDPOINT = `${API_BASE_URL}/`;
 
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Room type classes the model returns, and the visual weight of the
-// building we draw for each one (window grid + max height).
+// Room type classes the model returns
 const ROOM_CLASSES = [
   { key: "Entire home/apt", label: "Entire home/apt", rows: 6, cols: 2, height: "100%" },
   { key: "Private room", label: "Private room", rows: 4, cols: 2, height: "68%" },
   { key: "Shared room", label: "Shared room", rows: 2, cols: 2, height: "42%" },
 ];
 
-// A few realistic example listings so people can explore without typing.
+// A few realistic example listings
 const EXAMPLES = [
   {
     latitude: 40.7484, longitude: -73.9857, price: 120, minimum_nights: 2,
@@ -57,6 +56,7 @@ function buildSkylineLights() {
     container.appendChild(light);
   }
 }
+buildSkylineLights();
 
 // ============================================================
 // FORM WIRING
@@ -68,20 +68,24 @@ const availabilityInput = document.getElementById("availability_365");
 const availabilityValue = document.getElementById("availabilityValue");
 const exampleBtn = document.getElementById("exampleBtn");
 
-availabilityInput.addEventListener("input", () => {
-  availabilityValue.textContent = availabilityInput.value;
-});
-
-exampleBtn.addEventListener("click", () => {
-  const data = EXAMPLES[exampleIndex % EXAMPLES.length];
-  exampleIndex++;
-  Object.entries(data).forEach(([key, value]) => {
-    const el = form.elements[key];
-    if (el) el.value = value;
+if (availabilityInput && availabilityValue) {
+  availabilityInput.addEventListener("input", () => {
+    availabilityValue.textContent = availabilityInput.value;
   });
-  availabilityValue.textContent = data.availability_365;
-  formError.textContent = "";
-});
+}
+
+if (exampleBtn) {
+  exampleBtn.addEventListener("click", () => {
+    const data = EXAMPLES[exampleIndex % EXAMPLES.length];
+    exampleIndex++;
+    Object.entries(data).forEach(([key, value]) => {
+      const el = form.elements[key];
+      if (el) el.value = value;
+    });
+    if (availabilityValue) availabilityValue.textContent = data.availability_365;
+    formError.textContent = "";
+  });
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -107,9 +111,7 @@ form.addEventListener("submit", async (e) => {
     const result = await res.json();
     renderResult(result);
   } catch (err) {
-    formError.textContent = err.message?.includes("fetch")
-      ? "Can't reach the prediction API. Make sure the FastAPI server is running and reachable."
-      : err.message || "Something went wrong. Check the values and try again.";
+    formError.textContent = "Can't reach the prediction API. Make sure the FastAPI server is running and reachable.";
   } finally {
     setLoading(false);
   }
@@ -139,8 +141,10 @@ function formatDetail(detail) {
 }
 
 function setLoading(isLoading) {
-  predictBtn.disabled = isLoading;
-  predictBtn.classList.toggle("loading", isLoading);
+  if (predictBtn) {
+    predictBtn.disabled = isLoading;
+    predictBtn.classList.toggle("loading", isLoading);
+  }
 }
 
 // ============================================================
@@ -153,27 +157,27 @@ const buildingsRow = document.getElementById("buildingsRow");
 const probList = document.getElementById("probList");
 
 function renderResult(result) {
-  const predicted = result.Predicted_room_type;
-  const probs = result.Probability; // array aligned to model.classes_ order
+  // main.py se prediction array format me aa rahi hai, isliye result.Predicted_room_type[0] liya hai
+  const predicted = Array.isArray(result.Predicted_room_type) ? result.Predicted_room_type[0] : result.Predicted_room_type;
+  
+  // Probability array array-in-array structure ko fix karne ke liye flat array fetch kiya hai
+  const probs = Array.isArray(result.Probability[0]) ? result.Probability[0] : result.Probability; 
 
-  // Pair each class with its probability. We trust ROOM_CLASSES order
-  // matches sklearn's alphabetical classes_ output; fall back gracefully
-  // if lengths mismatch.
   const paired = ROOM_CLASSES.map((cls, i) => ({
     ...cls,
     prob: typeof probs?.[i] === "number" ? probs[i] : 0,
   }));
 
-  resultEmpty.hidden = true;
-  resultContent.hidden = false;
-
-  predictedName.textContent = predicted;
+  if (resultEmpty) resultEmpty.hidden = true;
+  if (resultContent) resultContent.hidden = false;
+  if (predictedName) predictedName.textContent = predicted;
 
   buildBuildings(paired, predicted);
   buildProbList(paired, predicted);
 }
 
 function buildBuildings(paired, predicted) {
+  if (!buildingsRow) return;
   buildingsRow.innerHTML = "";
 
   paired.forEach((cls) => {
@@ -201,7 +205,6 @@ function buildBuildings(paired, predicted) {
     col.appendChild(caption);
     buildingsRow.appendChild(col);
 
-    // Animate height + lit windows after insertion, staggered per building.
     requestAnimationFrame(() => {
       setTimeout(() => {
         b.style.setProperty("--h", cls.height);
@@ -220,6 +223,7 @@ function buildBuildings(paired, predicted) {
 }
 
 function buildProbList(paired, predicted) {
+  if (!probList) return;
   probList.innerHTML = "";
   const sorted = [...paired].sort((a, b) => b.prob - a.prob);
 
@@ -228,75 +232,13 @@ function buildProbList(paired, predicted) {
     row.className = "prob-row" + (cls.key === predicted ? " top" : "");
 
     const name = document.createElement("span");
-    name.className = "name";
     name.textContent = cls.label;
-
-    const value = document.createElement("span");
-    value.className = "value";
-    value.textContent = "0%";
-
-    const track = document.createElement("div");
-    track.className = "prob-track";
-    const fill = document.createElement("div");
-    fill.className = "prob-fill";
-    track.appendChild(fill);
-
+    
+    const percentage = document.createElement("span");
+    percentage.textContent = `${(cls.prob * 100).toFixed(1)}%`;
+    
     row.appendChild(name);
-    row.appendChild(value);
-    row.appendChild(track);
+    row.appendChild(percentage);
     probList.appendChild(row);
-
-    const pct = Math.round(cls.prob * 100);
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        fill.style.width = `${pct}%`;
-        animateCount(value, pct);
-      }, REDUCE_MOTION ? 0 : 150);
-    });
   });
 }
-
-function animateCount(el, target) {
-  if (REDUCE_MOTION) {
-    el.textContent = `${target}%`;
-    return;
-  }
-  const duration = 700;
-  const start = performance.now();
-  function tick(now) {
-    const t = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
-    el.textContent = `${Math.round(target * eased)}%`;
-    if (t < 1) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-
-// ============================================================
-// API HEALTH CHECK
-// ============================================================
-async function checkApiStatus() {
-  const statusEl = document.getElementById("apiStatus");
-  try {
-    const res = await fetch(HEALTH_ENDPOINT, { method: "GET" });
-    if (res.ok) {
-      statusEl.classList.add("online");
-      statusEl.classList.remove("offline");
-      statusEl.lastChild.textContent = "API connected";
-    } else {
-      throw new Error("bad status");
-    }
-  } catch {
-    statusEl.classList.add("offline");
-    statusEl.classList.remove("online");
-    statusEl.lastChild.textContent = "API unreachable";
-  }
-}
-
-// ============================================================
-// INIT
-// ============================================================
-document.addEventListener("DOMContentLoaded", () => {
-  buildSkylineLights();
-  checkApiStatus();
-});
