@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import pandas as pd
 from pydantic import BaseModel, Field
 import joblib
+import numpy as np
 from fastapi.middleware.cors import CORSMiddleware
 
 
