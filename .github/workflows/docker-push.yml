@@ -27,4 +27,4 @@ jobs:
         context: .
         push: true
         # 'my-app' ko badal kar jo aapki image ka naam rakhna hai wo likh dein
-        tags: ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+        tags: ${{ secrets.DOCKER_USERNAME }}/nyc-house-prediction:latest
